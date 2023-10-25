@@ -1,0 +1,190 @@
+---
+title: "BDA 640 Final Project Cluster Exploration"
+author: "Robert Zell"
+date: "2023-10-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(readxl)
+library(tidyverse)
+library(ggthemes)
+```
+
+Reading Data
+```{r}
+data <- read_excel("C:\\Users\\robze\\Downloads\\BDA640_DBSCAN_DATA_Clusters.xlsx")
+head(data)
+data$DRG01 <- as.factor(data$DRG01)
+levels(data$DRG01) <- c("Dehydration", "Congestive Heart Failure", "Pneumonia", "Colitis", "Pancreatitis", "GI Bleeding", "Urinary Tract Infection", "Syncope", "Edema", "Chest Pain", "Nausea", "Abdominal Pain")
+ncol(data)
+```
+
+
+Pivot Table
+```{r}
+data %>% group_by(cluster) %>% summarize(Avg_LOS = mean(OU_LOS_hrs), Avg_Age = mean(Age), 
+                                         Prop_Male = sum(Gender== "Male")/n(), 
+                                         Medicare = sum(PrimaryInsuranceCategory == "MEDICARE")/n(), 
+                                         Medicare_Other = sum(PrimaryInsuranceCategory == "MEDICARE OTHER")/n(), 
+                                         Private = sum(PrimaryInsuranceCategory == "Private")/n(), 
+                                         MEDICAID_STATE = sum(PrimaryInsuranceCategory == "MEDICAID STATE")/n(), 
+                                         MEDICAID_OTHER = sum(PrimaryInsuranceCategory == "MEDICAID OTHER")/n(), 
+                                         Flipped = sum(Flipped)/n(),
+                                         BloodPressureUpper = mean(BloodPressureUpper),
+                                         BloodPressureLower = mean(BloodPressureLower),
+                                         BloodPressureDiff = mean(BloodPressureDiff),
+                                         Pulse = mean(Pulse),
+                                         PulseOx = mean(PulseOximetry),
+                                         Respirations = mean(Respirations),
+                                         Temp = mean(Temperature),
+                                         Dehydration = sum(DRG01 == "Dehydration")/n(),
+                                         Heart_Failure = sum(DRG01 == "Congestive Heart Failure")/n(),
+                                         Pneumonia = sum(DRG01 == "Pneumonia")/n(),
+                                         Colitis = sum(DRG01 == "Colitis")/n(),
+                                         Pancreatitis = sum(DRG01 == "Pancreatitis")/n(),
+                                         UTI = sum(DRG01 == "Urinary Tract Infection")/n(),
+                                         Syncope = sum(DRG01 == "Urinary Tract Infection")/n(),
+                                         Edema = sum(DRG01 == "Syncope")/n(),
+                                         Chest_Pain = sum(DRG01 == "Chest Pain")/n(),
+                                         Nausea = sum(DRG01 == "Nausea")/n(),
+                                         Abdominal_Pain = sum(DRG01 == "Abdominal Pain")/n()
+                                         )
+```
+
+
+
+
+Visualize by Cluster
+```{r}
+
+clust <- ggplot(data, aes(x = `tsne-2d-one`, y = `tsne-2d-two`, color = as.factor(cluster))) + 
+  geom_point(size = 3, alpha = 0.5) +
+  scale_color_manual(values = c("#008080", "#6B8E23", "#FF6347", "#005BAD", "#003366", "#0099CC", 
+                                "#6A5ACD", "#6E7B8B", "#FF7F50", "#d3d3d3")) +
+  #xlim(-25,25) +
+  #ylim(-25,25) + 
+  theme_void() +
+  labs(color = "Cluster") +
+  theme(legend.position = "bottom")
+
+pdf("BDA 640 Clust.pdf", height = 5, width = 13)
+print(clust)
+dev.off
+  
+```
+
+Visualize By Primary Insurance Category
+```{r}
+ggplot(data, aes(x = `tsne-2d-one`, y = `tsne-2d-two`, color = as.factor(PrimaryInsuranceCategory))) + 
+  geom_point() +
+  theme_void() +
+  labs(color = "Insurance Category") +
+  theme(legend.position = "bottom")
+```
+
+Visualize by Gender
+```{r}
+ggplot(data, aes(x = `tsne-2d-one`, y = `tsne-2d-two`, color = as.factor(Gender))) + 
+  geom_point() +
+  theme_void() +
+  labs(color = "Gender") +
+  theme(legend.position = "bottom")
+```
+
+Visualize By Insurance & Gender
+```{r}
+ggplot(data, aes(x = `tsne-2d-one`, y = `tsne-2d-two`, 
+                 color = as.factor(PrimaryInsuranceCategory), 
+                 shape = as.factor(Gender))) + 
+  geom_point() +
+  theme_void() +
+  labs(color = "Insurance Category") +
+  theme(legend.position = "bottom")
+```
+
+
+
+
+
+Visualize By Primary DRG Code
+```{r}
+ggplot(data, aes(x = `tsne-2d-one`, y = `tsne-2d-two`, color = as.factor(DRG01))) + 
+  geom_point() +
+  theme_void() +
+  labs(color = "DRG Code") +
+  theme(legend.position = "bottom")
+```
+
+Visualize By Age
+```{r}
+ggplot(data, aes(x = `tsne-2d-one`, y = `tsne-2d-two`, color = Age)) + 
+  geom_point() +
+  theme_void() +
+  labs(color = "Age")
+```
+
+```{r}
+ggplot(data, aes(x = `tsne-2d-one`, y = `tsne-2d-two`, color = as.factor(Flipped))) + 
+  geom_point() +
+  theme_void() +
+  labs(color = "Flipped") +
+  theme(legend.position = "bottom")
+```
+
+Visualize By LOS
+```{r}
+ggplot(data, aes(x = `tsne-2d-one`, y = `tsne-2d-two`, color = OU_LOS_hrs)) + 
+  geom_point() +
+  theme_void() +
+  labs(color = "LOS")
+```
+
+Visualize By Pulse
+```{r}
+ggplot(data, aes(x = `tsne-2d-one`, y = `tsne-2d-two`, color = Pulse)) + 
+  geom_point() +
+  theme_void() +
+  labs(color = "Pulse")
+```
+
+
+
+
+
+Visualize By Pulse
+```{r}
+ggplot(data, aes(x = `tsne-2d-one`, y = `tsne-2d-two`, color = BloodPressureLower)) + 
+  geom_point() +
+  theme_void() +
+  labs(color = "BP Lower")
+```
+
+```{r}
+ggplot(data, aes(x = `tsne-2d-one`, y = `tsne-2d-two`, color = BloodPressureUpper)) + 
+  geom_point() +
+  theme_void() +
+  labs(color = "BP Upper")
+```
+
+```{r}
+ggplot(data, aes(x = `tsne-2d-one`, y = `tsne-2d-two`, color = BloodPressureDiff)) + 
+  geom_point() +
+  theme_void() +
+  labs(color = "BP Diff")
+```
+
+```{r}
+ggplot(data, aes(x = `tsne-2d-one`, y = `tsne-2d-two`, color = Respirations)) + 
+  geom_point() +
+  theme_void() +
+  labs(color = "Respirations")
+```
+

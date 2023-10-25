@@ -1,0 +1,440 @@
+---
+title: "BDA 640 Final Project"
+author: "Robert Zell"
+date: "2023-10-02"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, warning = FALSE)
+```
+
+## Predictive Analytics Analysis & Dashboard for Length of Stay and Flipping
+
+
+
+Load Libraries
+```{r}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(caret)
+library(MASS)
+```
+
+
+Read Data
+```{r}
+data = read.csv("C:\\Users\\robze\\Downloads\\OUData.csv")
+```
+
+
+### Data Preprocessing
+```{r}
+head(data)
+nrow(data) #1111 observations
+ncol(data) #15 columns
+sum(is.na(data)) #no missing values (at least for now)
+str(data) #Most variables are not coded correctly. Will need to adjust this in the next chunk.
+```
+
+#### Recoding Variables
+```{r}
+#"ObservationRecordKey" - not really sure if we need to do anything here
+
+#"Age" - good as is            
+
+#"Gender"  
+data$Gender <- as.factor(data$Gender)
+
+#"PrimaryInsuranceCategory" 
+data$PrimaryInsuranceCategory <- as.factor(data$PrimaryInsuranceCategory)
+
+#"InitPatientClassAndFirstPostOUClass"
+#data$InitPatientClassAndFirstPostOUClass <- as.factor(data$InitPatientClassAndFirstPostOUClass)
+
+#"Flipped" - I'll create a factor variable to help out with visualization components   
+data$flipped_factor <- as.factor(data$Flipped)
+
+#"OU_LOS_hrs"  
+data$OU_LOS_hrs <- as.numeric(data$OU_LOS_hrs)
+
+#"DRG01" 
+data$DRG01 <- as.factor(data$DRG01)
+  #renaming levels
+levels(data$DRG01)
+unique(data$DRG01)
+levels(data$DRG01) <- c("Dehydration", "Congestive Heart Failure", "Pneumonia", "Colitis", "Pancreatitis", "GI Bleeding", "Urinary Tract Infection", "Syncope", "Edema", "Chest Pain", "Nausea", "Abdominal Pain")
+
+#"BloodPressureUpper"     
+data$BloodPressureUpper <- as.numeric(data$BloodPressureUpper)
+
+#"BloodPressureLower" - Can probably just keep as is
+
+#"BloodPressureDiff"
+data$BloodPressureDiff <- as.numeric(data$BloodPressureDiff)
+
+#"Pulse"             
+data$Pulse <- as.numeric(data$Pulse)
+summary(data$Pulse)
+
+#"PulseOximetry"      
+data$PulseOximetry <- as.numeric(data$PulseOximetry)
+
+#"Respirations"       
+data$Respirations <- as.numeric(data$Respirations)
+
+#"Temperature"
+data$Temperature <- as.numeric(data$Temperature)
+```
+
+
+
+#### Missingness
+```{r}
+sum(is.na(data))
+data <- na.omit(data)
+```
+Since this missing values represents a negligible share of the observations in the dataset, we can simply delete these observations.
+
+### EDA
+```{r}
+#library(DataExplorer)
+#create_report(data)
+#library(esquisse)
+#esquisser(data)
+table(data$Flipped)
+```
+This package is epic. Basically does all the EDA for you. It's worth noting that some of the variable distributions are non-normal, likely lending more of an advantage to non-parametric models like kNN, decision trees, etc. Furthermore, we can definitely remove the InitPatientClassAndFirstPostOUClass variable from the analysis since it's so correlated with the outcome variable of interest (probably a coding step to create the outcome variable of interest).
+
+#### Train-Test Split
+```{r}
+#removing the not-so-useful column prior to model building
+data$InitPatientClassAndFirstPostOUClass <- NULL
+head(data)
+colnames(data)
+#Perform the split
+set.seed(123)
+sample_indices <- sample(1:nrow(data), size = floor(0.7*nrow(data)))
+train <- data[sample_indices, ]
+test <- data[-sample_indices, ]
+
+nrow(train)
+nrow(test)
+head(train)
+```
+
+#### Write CSV
+```{r}
+#write.csv(train, "C:\\Users\\robze\\OneDrive\\Documents\\BDA640_TRAIN", row.names = FALSE)
+#dat <- read.csv("C:\\Users\\robze\\OneDrive\\Documents\\BDA640_TRAIN")
+#head(dat)
+#write.csv(test, "C:\\Users\\robze\\OneDrive\\Documents\\BDA640_TEST", row.names = FALSE)
+#dat <- read.csv("C:\\Users\\robze\\OneDrive\\Documents\\BDA640_TEST")
+#head(dat)
+#write.csv(data, "C:\\Users\\robze\\OneDrive\\Documents\\BDA640_FULLDATA", row.names = FALSE)
+```
+
+
+### Classification Models
+
+#### Stepwise Logistic Regression
+```{r}
+#Model with all variables
+Full.Logit <- glm(Flipped ~ Age + Gender + PrimaryInsuranceCategory + DRG01 + Pulse + BloodPressureUpper + BloodPressureLower + BloodPressureDiff + PulseOximetry + Temperature + Respirations, 
+                  data = train, 
+                  family = "binomial")
+summary(Full.Logit)
+
+#Stepwise Model
+step.model <- Full.Logit %>% stepAIC(trace = FALSE)
+coef(step.model)
+
+#Final Logistic Model
+Final.Logit <- glm(Flipped ~ Age + Gender + PrimaryInsuranceCategory + DRG01 + Pulse, 
+                   data = train, 
+                   family = "binomial")
+summary(Final.Logit)
+
+#McFadden R-Squared
+with(summary(Final.Logit), 1-deviance/null.deviance) 
+
+#Make Predictions w/ Final Model
+Logit.Preds <- predict(Final.Logit, test)
+class(Logit.Preds)
+Logit.Preds <- as.data.frame(Logit.Preds)
+head(Logit.Preds)
+
+#AUC/ROC
+library(pROC)
+roc_logit <- roc(test$Flipped, Logit.Preds$Logit.Preds)
+auc(roc_logit) # 0.8524, which actually isn't that bad
+plot(roc_logit, main = "ROC Curve - Logistic Regression")
+
+#Confusion Matrix
+Logit.Bin.Preds <- as.data.frame(ifelse(Logit.Preds$Logit.Preds >= -0.1, 1, 0))
+colnames(Logit.Bin.Preds) <- "pred"
+Logit.CM <- confusionMatrix(as.factor(Logit.Bin.Preds$pred), as.factor(test$Flipped))
+print(Logit.CM) 
+```
+
+#### Decision Tree
+```{r}
+#Load Libraries
+library(rpart)
+library(rpart.plot)
+
+# Build Full Model
+Full.Tree <- rpart(Flipped ~ Age + Gender + PrimaryInsuranceCategory + DRG01 + Pulse + BloodPressureUpper + BloodPressureLower + BloodPressureDiff + PulseOximetry + Temperature + Respirations, data = train)
+
+#Plot Tree
+prp(Full.Tree)
+
+#Make Predictions w/ Final Model
+Tree.Preds <- predict(Full.Tree, test)
+class(Tree.Preds)
+Tree.Preds <- as.data.frame(Tree.Preds)
+head(Tree.Preds)
+
+#AUC/ROC
+roc_tree <- roc(test$Flipped, Tree.Preds$Tree.Preds)
+auc(roc_tree) 
+plot(roc_tree, main = "ROC Curve - Decision Tree")
+
+#Confusion Matrix
+#Confusion Matrix
+Tree.Bin.Preds <- as.data.frame(ifelse(Tree.Preds$Tree.Preds >= 0.5, 1, 0))
+Tree.CM <- confusionMatrix(as.factor(Tree.Bin.Preds$`ifelse(Tree.Preds$Tree.Preds >= 0.5, 1, 0)`), as.factor(test$Flipped))
+print(Tree.CM) 
+
+### Tuned Tree
+library(e1071)
+#Set Parameters
+set.seed(135)
+numFolds = trainControl( method = "cv", number = 10 )
+paramGrid = expand.grid(cp = seq(0.01,0.5,0.01))
+#Run Model
+train(flipped_factor ~ Age + Gender + PrimaryInsuranceCategory + DRG01 + Pulse + BloodPressureUpper + BloodPressureLower + BloodPressureDiff + PulseOximetry + Temperature + Respirations, data = train, method = "rpart", trControl = numFolds, tuneGrid = paramGrid) #Not much of an improvement when messing with cp. Logit has the dub so far.
+```
+
+
+#### Random Forest/Ranger
+```{r}
+#Load Library
+library(randomForest)
+library(ranger)
+
+#train model
+train(flipped_factor ~ Age + Gender + PrimaryInsuranceCategory + DRG01 + Pulse + BloodPressureDiff + PulseOximetry + Temperature, data = train, method = "rf", trControl = numFolds)
+
+#Using Ranger
+ranger.model <- ranger(Flipped ~ Age + Gender + PrimaryInsuranceCategory + DRG01 + Pulse + BloodPressureDiff + PulseOximetry + Temperature, 
+                       data = train,
+                       mtry = 5,
+                       max.depth = 4,
+                       num.trees = 200)
+
+ranger.model
+
+#Make Predictions w/ Final Model
+ranger.Preds <- predict(ranger.model, test, type = "response")
+class(ranger.Preds)
+ranger.Preds<- as.data.frame(ranger.Preds)
+head(ranger.Preds)
+
+#AUC/ROC
+roc_ranger <- roc(test$Flipped, as.numeric(ranger.Preds$prediction))
+auc(roc_ranger) # 0.81, which actually isn't that bad
+plot(roc_ranger, main = "ROC Curve - Ranger")
+
+#Accuracy
+#Confusion Matrix
+ranger.Bin.Preds <- as.data.frame(ifelse(ranger.Preds$prediction >= 0.45, 1, 0))
+table(ranger.Bin.Preds)
+Tree.CM <- confusionMatrix(as.factor(ranger.Bin.Preds$`ifelse(ranger.Preds$prediction >= 0.45, 1, 0)`), as.factor(test$Flipped))
+print(Tree.CM)
+```
+
+
+#### XG Boost
+```{r}
+library(xgboost)
+
+#Divide Up Data
+x_train = data.matrix(train[,-c(1,5:6,15)])
+y_train = data.matrix(as.numeric(train[,5]))
+
+x_test = data.matrix(test[,-c(1,5:6,15)])
+y_test = data.matrix(as.numeric(test[,5]))
+#Convert data to xgb matrix
+xgboost_train <- xgb.DMatrix(data = x_train, label = y_train)
+xgboost_test <- xgb.DMatrix(data = x_test, label = y_test)
+#Set Parameters for model
+params <- list(
+  objective = "binary:logistic", # for binary classification
+  eval_metric = "logloss"       # evaluation metric
+)
+
+#Create starter model
+xgb_model <- xgboost(data = xgboost_train, 
+                     params = params, 
+                     nrounds = 300, 
+                     max.depth = 6, 
+                     eta = 0.1, 
+                     verbose = 1)
+
+#Make Predictions
+xgb.preds <- predict(xgb_model, xgboost_test)
+head(xgb.preds)
+
+#AUC/ROC
+roc_xgb <- roc(test$Flipped, xgb.preds)
+auc(roc_xgb) # 0.81, which actually isn't that bad
+plot(roc_xgb, main = "ROC Curve - XG Boost")
+
+#Variable Importance
+library(Ckmeans.1d.dp)
+importance_matrix <- xgb.importance(colnames(y_train), model = xgb_model)
+xgbp <- xgb.ggplot.importance(importance_matrix, rel_to_first = TRUE, xlab = "Relative importance")
+xgbp
+
+#Confusion Matrix
+XG.Bin.Preds <- as.data.frame(ifelse(xgb.preds >= 0.4, 1, 0))
+colnames(XG.Bin.Preds) <- "pred"
+XG.CM <- confusionMatrix(as.factor(XG.Bin.Preds$pred), as.factor(test$Flipped))
+print(XG.CM) 
+```
+
+Plot Classification ROC Curves
+```{r}
+# Plot the first ROC curve
+plot(roc_logit, col = "#0099CC", print.auc = TRUE, main = "Logit Model vs Peers")
+
+# Add the second ROC curve to the same plot
+plot(roc_ranger, col = "#6A5ACD", add = TRUE)
+plot(roc_tree, col = "#005BAD", add = TRUE)
+plot(roc_xgb, col = "black", add = TRUE)
+legend(0.5, 0.37, legend = c("Logistic Regression", 
+                            "Random Forest",
+                            "Decision Tree",
+                            "XG Boost"),
+       fill = c("#0099CC", "#6A5ACD", "#005BAD", "black" ))
+```
+
+
+### Regression
+
+#### Length of Stay Regression Analysis
+```{r}
+#Full Model (log transform used to fix right skew in residuals)
+LOS.Reg <- lm(log(OU_LOS_hrs) ~ Age + Gender + PrimaryInsuranceCategory + Flipped + DRG01 + BloodPressureDiff + BloodPressureUpper + BloodPressureLower + Pulse + PulseOximetry + Respirations + Temperature, data = data)
+summary(LOS.Reg)
+#Stepwise
+library(MASS)
+LOS.Step.Reg <- stepAIC(LOS.Reg, direction = "both")
+summary(LOS.Step.Reg)
+plot(LOS.Step.Reg) 
+hist(LOS.Step.Reg$residuals) #Both QQ plots and histogram reveal right skew in residuals. 
+#Run some tests to ensure validity of model
+library(lmtest)
+library(stats)
+#Heteroskedasticity
+  #Breusch-Pagan Test
+bptest(LOS.Step.Reg, data = data) #still has heteroskedasticity 
+#Higher order terms?
+resettest(LOS.Step.Reg, power = 2)
+resettest(LOS.Step.Reg, power = 3)
+resettest(LOS.Step.Reg, power = 4) #pretty confident that no higher order terms are necessary
+#Multicollinearity?
+library(regclass)
+VIF(LOS.Step.Reg) #No notable multicollinearity in stepwise model
+
+```
+
+```{r}
+### Models Geared toward resolving heteroskedasticity issue ###
+#HCCM: yields heteroskedastic robust coefficient covariance matrix
+library(car)
+cov1 <- hccm(LOS.Step.Reg, type = "hc1")
+LOS.HC1 <- coeftest(LOS.Step.Reg, vcov. = cov1)
+LOS.HC1
+
+#FGLS
+ehatsq <- resid(LOS.Step.Reg)^2
+sighatsq.ols <- lm(log(ehatsq) ~ Age + PrimaryInsuranceCategory + Flipped+ DRG01 + Pulse + Gender, data = data)
+vari <- exp(fitted(sighatsq.ols))
+LOS.FGLS <- lm(log(OU_LOS_hrs) ~ Age + PrimaryInsuranceCategory + Flipped + DRG01 + Pulse + Gender, weights = 1/vari, data = data)
+summary(LOS.FGLS)
+
+#Residual analysis
+plot(LOS.FGLS)
+hist(LOS.FGLS$residuals)
+```
+
+
+SuperLearner Wrappers
+```{r}
+listWrappers()
+```
+
+
+
+
+Superlearner & OU_LOS_hrs (Gaining Inference)
+```{r}
+y <- as.vector(train[,"OU_LOS_hrs"])
+x <- data.frame(train[,-c(1,6,15)])
+y <- log(y)
+head(y)
+head(x)
+nrow(x)
+head(train[,"OU_LOS_hrs"])
+head(test[,-c(1,6,15)])
+#install.packages("biglasso")
+library(SuperLearner)
+library(ranger) 
+library(randomForest)
+library(glmnet)
+library(rpart)
+library(xgboost)
+library(mgcv)
+library(biglasso)
+library(caret)
+
+
+   set.seed(240)
+    SL.model <- SuperLearner(y,
+                                 x,
+                                 family= gaussian(),
+                                 SL.library=list("SL.mean", "SL.randomForest", "SL.ranger", "SL.lm", "SL.xgboost", 
+                                                 "SL.biglasso", "SL.step.forward", "SL.loess", "SL.glmnet"),
+                                 verbose = TRUE)
+    SL.model
+    
+    SL_mod1 <- predict(SL.model, test[,-c(1,6,15)]) #Remove "OU_LOS_hrs" since SL thinks it's "y"
+      SL_mod1df <- as.data.frame(SL_mod1)
+      SL_mod1df$actual <- test$OU_LOS_hrs
+      SL_mod1df$exppred <- exp(SL_mod1df$pred)
+  ggplot(SL_mod1df, aes(exppred, actual)) + geom_point()
+  r.sl <- cor(SL_mod1df$exppred, SL_mod1df$actual)
+  r.sl
+  rsq.sl <- r.sl^2
+  rsq.sl
+  
+  
+```
+
+
+Save Best Regression & Classification Models
+```{r}
+#Superlearner Classification Model, which will fit likelihood of flipping as an input for the regression model
+saveRDS(Final.Logit, file = "./Logit_Flip.rda")
+#Regression Model
+saveRDS(LOS.FGLS, file = "./FGLS_LOS.rda")
+```
+
+
+
+
