@@ -124,7 +124,7 @@ def user_input_features():
 df = user_input_features()
 
       
-companies_data = pd.read_csv('/Users/andresalcaraz/Desktop/Data_Science_Projects/Data-Science-Projects/Smart_Invest_App/App_data.csv')
+companies_data = pd.read_csv('Smart_Invest_App/App_data.csv')
 
 # Encode categorical variables
 la_revenue = LabelEncoder()
