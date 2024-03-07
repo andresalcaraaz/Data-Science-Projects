@@ -8,13 +8,6 @@ from sklearn.preprocessing import LabelEncoder
 from imblearn.under_sampling import RandomUnderSampler
 import plotly.express as px
 
-
-base="light"
-primaryColor="#0000ff"
-secondaryBackgroundColor="#30a3da"
-textColor="#000000"
-
-
 st.header("""***Company Trajectory Predictor***""")
 
 st.sidebar.header('***Company Information***')
