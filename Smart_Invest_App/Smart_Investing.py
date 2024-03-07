@@ -8,7 +8,7 @@ from sklearn.preprocessing import LabelEncoder
 from imblearn.under_sampling import RandomUnderSampler
 import plotly.express as px
 
-[theme]
+
 base="light"
 primaryColor="#0000ff"
 secondaryBackgroundColor="#30a3da"
