@@ -1,9 +1,7 @@
-# 📦 Streamlit App Starter Kit 
-```
-⬆️ (Replace above with your app's name)
-```
+# Startup Exit Prredictor App
 
-Description of the app ...
+
+This application can be leveraged by investors on early stage ventures as a way to evaluate in a few minutes takcing key metrics. Insights on early warnings for faliure has been extracted from this porject that could serve to founders to pivot before is to late.
 
 ## Demo App
 
