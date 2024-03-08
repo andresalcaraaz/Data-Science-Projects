@@ -12,7 +12,6 @@ st.header("""***Company Trajectory Predictor***""")
 
 st.sidebar.header('***Company Information***')
 
-
 def user_input_features():
     def revenue_function(value):
      if value == '$10B+' :
