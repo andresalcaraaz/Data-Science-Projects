@@ -12,6 +12,7 @@ st.header("""***Company Trajectory Predictor***""")
 
 st.sidebar.header('***Company Information***')
 
+
 def user_input_features():
     def revenue_function(value):
      if value == '$10B+' :
@@ -122,7 +123,7 @@ def user_input_features():
 df = user_input_features()
 
       
-companies_data = pd.read_csv('Smart_Invest_App/App_data.csv')
+companies_data = pd.read_csv('Startup_Exit_App/App_data.csv')
 
 # Encode categorical variables
 la_revenue = LabelEncoder()
