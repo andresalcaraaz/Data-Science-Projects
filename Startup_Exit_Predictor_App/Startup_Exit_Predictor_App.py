@@ -122,7 +122,7 @@ def user_input_features():
 df = user_input_features()
 
       
-companies_data = pd.read_csv('Startup_Exit_App/App_data.csv')
+companies_data = pd.read_csv('Startup_Exit_Predictor_App/App_data.csv')
 
 # Encode categorical variables
 la_revenue = LabelEncoder()
@@ -195,11 +195,6 @@ predictions = {
     'Predicted_Failed': round(y_probabilities[:, 1][0] * 100),
     'Predicted_Exit': round(y_probabilities[:, 2][0] * 100)
 }
-
-
-
-# st.subheader("Probabilities Prediction")
-# st.write(predictions)
 
 data = {
     'Private Active': predictions['Predicted_Active'],
