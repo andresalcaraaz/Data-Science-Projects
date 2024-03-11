@@ -202,8 +202,6 @@ data = {
     'Exit (M&A or IPO)': predictions['Predicted_Exit']
 }
 
-#cad8e8
-
 # Extract labels and percentages
 labels = list(data.keys())[0:]
 percentages = list(data.values())[0:]
