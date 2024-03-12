@@ -122,7 +122,7 @@ def user_input_features():
 df = user_input_features()
 
       
-companies_data = pd.read_csv('Startup_Exit_Predictor_App/Startup_Pred_App/App_data.csv')
+companies_data = pd.read_csv('Startup_Exit_Pred_App/Startup_Pred_App/App_data.csv')
 
 # Encode categorical variables
 la_revenue = LabelEncoder()
