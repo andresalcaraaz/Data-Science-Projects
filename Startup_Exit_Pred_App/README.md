@@ -5,7 +5,7 @@ This application can be leveraged by investors on early stage ventures as a way 
 
 ## Demo App
 
-https://startup-exit-predictor.streamlit.app/
+[https://startup-exit-predictor.streamlit.app/](https://startup-exit-predictor.streamlit.app/)https://startup-exit-predictor.streamlit.app/
 
-## GitHub Codespaces
+
 
